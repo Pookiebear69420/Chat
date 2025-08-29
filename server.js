@@ -4,7 +4,8 @@ const WebSocket = require("ws");
 const PORT = process.env.PORT || 8080;
 
 // Create WebSocket server
-const wss = new WebSocket.Server({ port: PORT });
+const server = require('http').createServer();
+const wss = new WebSocket.Server({ server });
 
 // Centralized state management
 const state = {
@@ -12,19 +13,27 @@ const state = {
   clients: new Map()
 };
 
-// Logging utility
+// Advanced logging utility
 function log(message, type = 'info') {
   const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] [${type.toUpperCase()}] ${message}`);
+  console.log(JSON.stringify({
+    timestamp,
+    type: type.toUpperCase(),
+    message
+  }));
 }
 
 // Broadcast to all connected clients
 function broadcast(message, excludeClient = null) {
-  wss.clients.forEach(client => {
-    if (client !== excludeClient && client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify(message));
-    }
-  });
+  try {
+    wss.clients.forEach(client => {
+      if (client !== excludeClient && client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify(message));
+      }
+    });
+  } catch (error) {
+    log(`Broadcast error: ${error.message}`, 'error');
+  }
 }
 
 // Main WebSocket connection handler
@@ -98,13 +107,35 @@ wss.on("connection", (ws) => {
   });
 });
 
+// Start the server
+server.listen(PORT, () => {
+  log(`WebSocket server running on port ${PORT}`);
+});
+
 // Graceful shutdown
 process.on('SIGINT', () => {
   log('SIGINT received. Closing WebSocket server.');
+  
+  // Close WebSocket server
   wss.close(() => {
     log('WebSocket server closed.');
-    process.exit(0);
+    
+    // Close HTTP server
+    server.close(() => {
+      log('HTTP server closed.');
+      process.exit(0);
+    });
   });
 });
 
-log(`WebSocket server running on port ${PORT}`);
+// Handle unhandled promises
+process.on('unhandledRejection', (reason, promise) => {
+  log(`Unhandled Rejection at: ${promise}, reason: ${reason}`, 'error');
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  log(`Uncaught Exception: ${error.message}`, 'error');
+  // Attempt graceful shutdown
+  process.exit(1);
+});
