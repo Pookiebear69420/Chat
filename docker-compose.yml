@@ -12,5 +12,10 @@ services:
       - PORT=8080
     restart: unless-stopped
     volumes:
-      - ./:/app
-      - /app/node_modules
+      - ./:/usr/src/app
+      - /usr/src/app/node_modules
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
