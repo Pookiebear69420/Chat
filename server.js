@@ -4,6 +4,7 @@ const PORT = process.env.PORT || 8080;
 const wss = new WebSocket.Server({ port: PORT });
 
 let users = new Set();
+let clients = new Map(); // Track WebSocket connections by username
 
 wss.on("connection", (ws) => {
   let username = null;
@@ -15,10 +16,19 @@ wss.on("connection", (ws) => {
       if (data.type === "join" && data.username) {
         username = data.username;
         users.add(username);
+        clients.set(username, ws);
         broadcastUserList();
-      } else if (data.type === "chat-message" && data.author && data.text) {
-        // Broadcast chat message to all clients
-        broadcast(JSON.stringify(data));
+      } else if (data.type === "chat-message") {
+        if (data.dm && data.recipient) {
+          // Direct Message
+          const recipientClient = clients.get(data.recipient);
+          if (recipientClient) {
+            recipientClient.send(JSON.stringify(data));
+          }
+        } else {
+          // Broadcast to all
+          broadcast(JSON.stringify(data));
+        }
       }
     } catch (e) {
       console.error("Invalid message", e);
@@ -28,6 +38,7 @@ wss.on("connection", (ws) => {
   ws.on("close", () => {
     if (username) {
       users.delete(username);
+      clients.delete(username);
       broadcastUserList();
     }
   });
