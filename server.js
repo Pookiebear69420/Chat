@@ -13,22 +13,42 @@ wss.on("connection", (ws) => {
     try {
       const data = JSON.parse(message);
 
-      if (data.type === "join" && data.username) {
-        username = data.username;
-        users.add(username);
-        clients.set(username, ws);
-        broadcastUserList();
-      } else if (data.type === "chat-message") {
-        if (data.dm && data.recipient) {
-          // Direct Message
-          const recipientClient = clients.get(data.recipient);
-          if (recipientClient) {
-            recipientClient.send(JSON.stringify(data));
+      switch(data.type) {
+        case "join":
+          username = data.username;
+          users.add(username);
+          clients.set(username, ws);
+          broadcastUserList();
+          break;
+
+        case "chat-message":
+          if (data.recipient) {
+            // Direct Message
+            const recipientClient = clients.get(data.recipient);
+            if (recipientClient) {
+              recipientClient.send(JSON.stringify({
+                type: "direct-message",
+                from: username,
+                text: data.text
+              }));
+              // Send confirmation to sender
+              ws.send(JSON.stringify({
+                type: "direct-message",
+                from: username,
+                text: data.text,
+                recipient: data.recipient,
+                self: true
+              }));
+            }
+          } else {
+            // Broadcast to all
+            broadcast(JSON.stringify({
+              type: "chat-message",
+              author: username,
+              text: data.text
+            }));
           }
-        } else {
-          // Broadcast to all
-          broadcast(JSON.stringify(data));
-        }
+          break;
       }
     } catch (e) {
       console.error("Invalid message", e);
@@ -53,7 +73,10 @@ function broadcast(msg) {
 }
 
 function broadcastUserList() {
-  const msg = JSON.stringify({ type: "user-list", users: Array.from(users) });
+  const msg = JSON.stringify({ 
+    type: "user-list", 
+    users: Array.from(users) 
+  });
   broadcast(msg);
 }
 
