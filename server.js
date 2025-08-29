@@ -1,10 +1,11 @@
 const WebSocket = require("ws");
+const http = require('http');
 
 // Use environment variable for port, with fallback
 const PORT = process.env.PORT || 8080;
 
-// Create WebSocket server
-const server = require('http').createServer();
+// Create HTTP and WebSocket servers
+const server = http.createServer();
 const wss = new WebSocket.Server({ server });
 
 // Centralized state management
@@ -13,13 +14,15 @@ const state = {
   clients: new Map()
 };
 
-// Advanced logging utility
+// Advanced logging utility with process and container info
 function log(message, type = 'info') {
   const timestamp = new Date().toISOString();
   console.log(JSON.stringify({
     timestamp,
+    pid: process.pid,
     type: type.toUpperCase(),
-    message
+    message,
+    containerID: process.env.HOSTNAME || 'unknown'
   }));
 }
 
@@ -36,11 +39,22 @@ function broadcast(message, excludeClient = null) {
   }
 }
 
+// Heartbeat mechanism to detect connection health
+function noop() {}
+
+function heartbeat() {
+  this.isAlive = true;
+}
+
 // Main WebSocket connection handler
 wss.on("connection", (ws) => {
-  let username = null;
-
   log('New WebSocket connection established');
+
+  // Add heartbeat properties
+  ws.isAlive = true;
+  ws.on('pong', heartbeat);
+
+  let username = null;
 
   ws.on("message", (messageData) => {
     try {
@@ -107,15 +121,33 @@ wss.on("connection", (ws) => {
   });
 });
 
+// Periodic connection health check
+const interval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) return ws.terminate();
+    
+    ws.isAlive = false;
+    ws.ping(noop);
+  });
+}, 30000);
+
 // Start the server
 server.listen(PORT, () => {
   log(`WebSocket server running on port ${PORT}`);
+  log(`Server startup details:`, 'info', {
+    nodeVersion: process.version,
+    platform: process.platform,
+    arch: process.arch,
+    memoryUsage: process.memoryUsage()
+  });
 });
 
 // Graceful shutdown
 process.on('SIGINT', () => {
   log('SIGINT received. Closing WebSocket server.');
   
+  clearInterval(interval);
+
   // Close WebSocket server
   wss.close(() => {
     log('WebSocket server closed.');
