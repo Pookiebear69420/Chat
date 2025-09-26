@@ -9,6 +9,10 @@
   "routes": [
     {
       "src": "/(.*)",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/api/socket",
       "dest": "/server.js"
     }
   ]
