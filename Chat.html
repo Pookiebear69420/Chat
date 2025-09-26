@@ -546,7 +546,6 @@
             previewLength: 100
         };
 
-        // Load settings from localStorage
         if (localStorage.getItem('zenzSettings')) {
             settings = JSON.parse(localStorage.getItem('zenzSettings'));
             applySettings();
@@ -554,12 +553,11 @@
 
         function applySettings() {
             document.documentElement.style.setProperty('--accent-color', settings.theme === 'red' ? '#ff0000' : '#00ff00');
-            document.querySelector('.message-text').style.fontSize = settings.fontSize; // Example application
-            // Apply other settings as needed, e.g., toggle sounds, auto-scroll logic
+            document.querySelector('.message-text').style.fontSize = settings.fontSize;
         }
 
         function initSocket() {
-            socket = io();
+            socket = io('/', { path: '/api/socket' }); // Match server path
 
             socket.on('connect', () => {
                 updateConnectionStatus(true);
@@ -572,7 +570,7 @@
             socket.on('message', (data) => {
                 displayMessage(data.username, data.message, data.timestamp, data.username === currentUsername);
                 if (settings.sounds) {
-                    // Play sound (add audio element if needed)
+                    // Add audio element if needed
                 }
             });
 
@@ -605,7 +603,6 @@
                 document.getElementById('sendButton').disabled = false;
             });
         }
-
         function updateConnectionStatus(connected) {
             const status = document.getElementById('connectionStatus');
             if (connected) {
