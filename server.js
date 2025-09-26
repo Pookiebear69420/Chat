@@ -7,8 +7,11 @@ const io = require('socket.io')(http, {
   }
 });
 
-const users = {}; // {socket.id: username}
-const usernames = new Set(); // For quick uniqueness check
+const users = {};
+const usernames = new Set();
+
+// Serve static files from the root (where index.html is)
+app.use(express.static(__dirname));
 
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/index.html');
