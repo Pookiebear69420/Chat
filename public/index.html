@@ -9,7 +9,7 @@
     <style>
         :root {
             --bg-color: #000000;
-            --accent-color: #ff0000; /* Red default */
+            --accent-color: #ff0000;
             --text-color: #ffffff;
             --secondary-color: #1a1a1a;
             --neon-glow: 0 0 5px var(--accent-color), 0 0 10px var(--accent-color);
@@ -227,7 +227,7 @@
 
         .message-input:focus {
             border-color: var(--accent-color);
-            box-shadow: 0 0 0 3px rgba(var(--accent-color), 0.2);
+            box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.2);
         }
 
         .send-button {
@@ -248,7 +248,7 @@
 
         .send-button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(var(--accent-color), 0.4);
+            box-shadow: 0 6px 16px rgba(255, 0, 0, 0.4);
         }
 
         .send-button:disabled {
@@ -321,7 +321,7 @@
 
         .online-users {
             position: absolute;
-            top: 70px;
+            top: 80px;
             left: 20px;
             width: 250px;
             background: var(--secondary-color);
@@ -330,6 +330,11 @@
             box-shadow: var(--neon-glow);
             overflow-y: auto;
             max-height: 400px;
+            display: none;
+        }
+
+        .online-users.active {
+            display: block;
         }
 
         .online-user {
@@ -342,7 +347,7 @@
         }
 
         .online-user:hover {
-            background: var(--accent-color);
+            background: rgba(255, 0, 0, 0.2);
         }
 
         .online-user .dot {
@@ -354,32 +359,10 @@
             box-shadow: 0 0 5px #00ff00;
         }
 
-        .online-user .actions {
-            margin-left: auto;
-            display: flex;
-            gap: 5px;
-        }
-
-        .online-user button {
-            background: none;
-            border: none;
-            color: var(--text-color);
-            cursor: pointer;
-            font-size: 14px;
-            padding: 2px 6px;
-            border-radius: 4px;
-            transition: background 0.3s;
-            box-shadow: var(--neon-glow);
-        }
-
-        .online-user button:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
         .modal {
             display: none;
             position: fixed;
-            z-index: 1;
+            z-index: 1000;
             left: 0;
             top: 0;
             width: 100%;
@@ -408,6 +391,7 @@
             background: #1a1a1a;
             color: var(--text-color);
             border-radius: 5px;
+            font-family: inherit;
         }
 
         .modal-button {
@@ -418,22 +402,7 @@
             border-radius: 5px;
             cursor: pointer;
             box-shadow: var(--neon-glow);
-        }
-
-        .settings-modal .modal-content {
-            width: 80%;
-            max-width: 500px;
-        }
-
-        .settings-item {
-            margin: 10px 0;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .settings-item label {
-            color: var(--text-color);
+            margin: 10px;
         }
 
         .settings-button {
@@ -442,8 +411,39 @@
             color: var(--text-color);
             font-size: 20px;
             cursor: pointer;
-            margin-left: 10px;
-            box-shadow: var(--neon-glow);
+            padding: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .settings-button:hover {
+            transform: scale(1.1);
+        }
+
+        .settings-modal .modal-content {
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .settings-item {
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            text-align: left;
+        }
+
+        .settings-item label {
+            color: var(--text-color);
+            font-size: 14px;
+        }
+
+        .settings-item select, 
+        .settings-item input[type="number"] {
+            background: #1a1a1a;
+            color: var(--text-color);
+            border: 1px solid var(--accent-color);
+            padding: 5px;
+            border-radius: 3px;
         }
     </style>
 </head>
@@ -456,7 +456,7 @@
                 <div class="app-icon">💬</div>
                 <h1 class="header-title">ZENZCHAT</h1>
             </div>
-            <div class="online-count">
+            <div class="online-count" id="onlineCountContainer">
                 <div class="online-dot"></div>
                 <span id="onlineCount">0 online</span>
             </div>
@@ -474,15 +474,13 @@
         <div class="typing-indicator" id="typingIndicator"></div>
 
         <div class="input-container">
-            <textarea class="message-input" id="messageInput" placeholder="Type your message..." rows="1"></textarea>
+            <textarea class="message-input" id="messageInput" placeholder="Type your message..." rows="1" disabled></textarea>
             <button class="send-button" id="sendButton" disabled>
                 <span>📤</span>
             </button>
         </div>
 
-        <div class="online-users" id="onlineUsers">
-            <!-- Populated dynamically -->
-        </div>
+        <div class="online-users" id="onlineUsers"></div>
     </div>
 
     <!-- Username Modal -->
@@ -490,20 +488,21 @@
         <div class="modal-content">
             <h2>Enter Your Username</h2>
             <input type="text" class="modal-input" id="modalUsernameInput" placeholder="Your name" maxlength="20">
-            <button class="modal-button" id="submitUsername">Join</button>
-            <p id="usernameError" style="color: red; display: none;">Username taken or invalid.</p>
+            <button class="modal-button" id="submitUsername">Join Chat</button>
+            <p id="usernameError" style="color: red; display: none; margin-top: 10px;">Username is taken or invalid. Please try another.</p>
         </div>
     </div>
 
     <!-- Settings Modal -->
-    <div id="settingsModal" class="modal">
-        <div class="modal-content settings-modal">
+    <div id="settingsModal" class="modal settings-modal">
+        <div class="modal-content">
             <h2>Settings</h2>
             <div class="settings-item">
                 <label>Theme Color:</label>
                 <select id="themeSelect">
                     <option value="red">Black & Red</option>
                     <option value="green">Black & Green</option>
+                    <option value="blue">Black & Blue</option>
                 </select>
             </div>
             <div class="settings-item">
@@ -526,7 +525,8 @@
                 <label>Message Preview Length:</label>
                 <input type="number" id="previewLength" value="100" min="50" max="300">
             </div>
-            <button class="modal-button" id="saveSettings">Save</button>
+            <button class="modal-button" id="saveSettings">Save Settings</button>
+            <button class="modal-button" id="closeSettings" style="background: #666;">Close</button>
         </div>
     </div>
 
@@ -543,74 +543,89 @@
             previewLength: 100
         };
 
-        // Load settings from localStorage
-        if (localStorage.getItem('zenzSettings')) {
-            settings = JSON.parse(localStorage.getItem('zenzSettings'));
+        // Load settings from memory (no localStorage)
+        function loadSettings() {
             applySettings();
         }
 
         function applySettings() {
-            document.documentElement.style.setProperty('--accent-color', settings.theme === 'red' ? '#ff0000' : '#00ff00');
-            document.querySelectorAll('.message-text').forEach(el => el.style.fontSize = settings.fontSize);
-            // Placeholder for sound and auto-scroll logic
+            const colors = {
+                red: '#ff0000',
+                green: '#00ff00',
+                blue: '#0080ff'
+            };
+            document.documentElement.style.setProperty('--accent-color', colors[settings.theme] || '#ff0000');
+            
+            const messageTexts = document.querySelectorAll('.message-text');
+            messageTexts.forEach(el => el.style.fontSize = settings.fontSize);
         }
 
         function initSocket() {
-            socket = io('/', { path: '/api/socket' });
+            try {
+                socket = io();
 
-            socket.on('connect', () => {
-                updateConnectionStatus(true);
-                console.log('Connected to server');
-            });
+                socket.on('connect', () => {
+                    console.log('Connected to server');
+                    updateConnectionStatus(true);
+                });
 
-            socket.on('connect_error', (error) => {
-                console.error('Connection error:', error.message);
+                socket.on('connect_error', (error) => {
+                    console.error('Connection error:', error);
+                    updateConnectionStatus(false);
+                    setTimeout(() => {
+                        if (socket && !socket.connected) {
+                            socket.connect();
+                        }
+                    }, 2000);
+                });
+
+                socket.on('disconnect', (reason) => {
+                    console.log('Disconnected:', reason);
+                    updateConnectionStatus(false);
+                });
+
+                socket.on('message', (data) => {
+                    displayMessage(data.username, data.message, data.timestamp, data.username === currentUsername);
+                    if (settings.sounds && data.username !== currentUsername) {
+                        playNotificationSound();
+                    }
+                });
+
+                socket.on('userCount', (count) => {
+                    document.getElementById('onlineCount').textContent = `${count} online`;
+                });
+
+                socket.on('userList', (users) => {
+                    updateOnlineUsers(users);
+                });
+
+                socket.on('userTyping', (data) => {
+                    if (data.username !== currentUsername) {
+                        showTypingIndicator(data.username);
+                    }
+                });
+
+                socket.on('userStoppedTyping', (data) => {
+                    if (data.username !== currentUsername) {
+                        hideTypingIndicator();
+                    }
+                });
+
+                socket.on('username_taken', () => {
+                    document.getElementById('usernameError').style.display = 'block';
+                });
+
+                socket.on('joined', () => {
+                    document.getElementById('usernameModal').style.display = 'none';
+                    document.getElementById('sendButton').disabled = false;
+                    document.getElementById('messageInput').disabled = false;
+                    document.getElementById('messageInput').focus();
+                });
+
+            } catch (error) {
+                console.error('Socket initialization error:', error);
                 updateConnectionStatus(false);
-                // Attempt reconnect after 2 seconds
-                setTimeout(() => socket.connect(), 2000);
-            });
-
-            socket.on('disconnect', () => {
-                updateConnectionStatus(false);
-                console.log('Disconnected from server');
-            });
-
-            socket.on('message', (data) => {
-                displayMessage(data.username, data.message, data.timestamp, data.username === currentUsername);
-                if (settings.sounds) {
-                    // Add audio element for sound (e.g., <audio id="notificationSound" src="sound.mp3"></audio>)
-                    // document.getElementById('notificationSound')?.play();
-                }
-            });
-
-            socket.on('userCount', (count) => {
-                document.getElementById('onlineCount').textContent = `${count} online`;
-            });
-
-            socket.on('userList', (users) => {
-                updateOnlineUsers(users);
-            });
-
-            socket.on('userTyping', (data) => {
-                if (data.username !== currentUsername) {
-                    showTypingIndicator(data.username);
-                }
-            });
-
-            socket.on('userStoppedTyping', (data) => {
-                if (data.username !== currentUsername) {
-                    hideTypingIndicator();
-                }
-            });
-
-            socket.on('username_taken', () => {
-                document.getElementById('usernameError').style.display = 'block';
-            });
-
-            socket.on('joined', () => {
-                document.getElementById('usernameModal').style.display = 'none';
-                document.getElementById('sendButton').disabled = false;
-            });
+            }
         }
 
         function updateConnectionStatus(connected) {
@@ -627,12 +642,20 @@
         function displayMessage(username, message, timestamp, isOwn) {
             const messagesContainer = document.getElementById('messagesContainer');
             const welcomeMessage = messagesContainer.querySelector('.welcome-message');
-            if (welcomeMessage) welcomeMessage.remove();
+            if (welcomeMessage) {
+                welcomeMessage.remove();
+            }
 
             const messageElement = document.createElement('div');
             messageElement.className = `message ${isOwn ? 'own' : 'other'}`;
 
             const time = new Date(timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            // Sanitize message content to prevent XSS
+            const sanitizedMessage = message.replace(/[<>]/g, (match) => match === '<' ? '&lt;' : '&gt;');
+            const displayMessage = sanitizedMessage.length > settings.previewLength 
+                ? sanitizedMessage.slice(0, settings.previewLength) + '...' 
+                : sanitizedMessage;
 
             messageElement.innerHTML = `
                 <div class="message-bubble">
@@ -640,12 +663,15 @@
                         <span class="username">${username}</span>
                         <span class="timestamp">${time}</span>
                     </div>
-                    <div class="message-text">${message.slice(0, settings.previewLength)}${message.length > settings.previewLength ? '...' : ''}</div>
+                    <div class="message-text" style="font-size: ${settings.fontSize}">${displayMessage}</div>
                 </div>
             `;
 
             messagesContainer.appendChild(messageElement);
-            if (settings.autoScroll) messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            
+            if (settings.autoScroll) {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
         }
 
         function showTypingIndicator(username) {
@@ -662,7 +688,10 @@
         function sendMessage() {
             const messageInput = document.getElementById('messageInput');
             const message = messageInput.value.trim();
-            if (!message || !socket.connected) return;
+            
+            if (!message || !socket || !socket.connected) {
+                return;
+            }
 
             socket.emit('message', {
                 username: currentUsername,
@@ -672,6 +701,7 @@
 
             messageInput.value = '';
             updateSendButton();
+            autoResizeTextarea();
 
             if (isTyping) {
                 socket.emit('stopTyping', { username: currentUsername });
@@ -682,7 +712,9 @@
         function updateSendButton() {
             const messageInput = document.getElementById('messageInput');
             const sendButton = document.getElementById('sendButton');
-            sendButton.disabled = !messageInput.value.trim() || !socket.connected;
+            const hasMessage = messageInput.value.trim().length > 0;
+            const isConnected = socket && socket.connected;
+            sendButton.disabled = !hasMessage || !isConnected;
         }
 
         function autoResizeTextarea() {
@@ -692,13 +724,18 @@
         }
 
         function handleTyping() {
-            if (!isTyping && socket.connected) {
+            if (!socket || !socket.connected) return;
+            
+            if (!isTyping) {
                 socket.emit('typing', { username: currentUsername });
                 isTyping = true;
             }
+            
             clearTimeout(typingTimer);
             typingTimer = setTimeout(() => {
-                socket.emit('stopTyping', { username: currentUsername });
+                if (socket && socket.connected) {
+                    socket.emit('stopTyping', { username: currentUsername });
+                }
                 isTyping = false;
             }, 1000);
         }
@@ -706,6 +743,7 @@
         function updateOnlineUsers(users) {
             const onlineUsers = document.getElementById('onlineUsers');
             onlineUsers.innerHTML = '';
+            
             users.forEach(user => {
                 if (user !== currentUsername) {
                     const userElement = document.createElement('div');
@@ -713,113 +751,25 @@
                     userElement.innerHTML = `
                         <div class="dot"></div>
                         <span>${user}</span>
-                        <div class="actions">
-                            <button onclick="startCall('${user}')">📞</button>
-                            <button onclick="startScreenShare('${user}')">🖥️</button>
-                            <button onclick="startVideoCall('${user}')">🎥</button>
-                            <button onclick="startPrivateMessage('${user}')">💬</button>
-                        </div>
                     `;
                     onlineUsers.appendChild(userElement);
                 }
             });
         }
 
-        function startCall(user) {
-            alert(`Calling ${user} (WebRTC placeholder)`);
-        }
-
-        function startScreenShare(user) {
-            alert(`Screen sharing with ${user} (WebRTC placeholder)`);
-        }
-
-        function startVideoCall(user) {
-            alert(`Video calling ${user} (WebRTC placeholder)`);
-        }
-
-        function startPrivateMessage(user) {
-            const messageInput = document.getElementById('messageInput');
-            messageInput.value = `/pm ${user} `;
-            messageInput.focus();
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            initSocket();
-
-            const messageInput = document.getElementById('messageInput');
-            const sendButton = document.getElementById('sendButton');
-            const usernameModal = document.getElementById('usernameModal');
-            const modalUsernameInput = document.getElementById('modalUsernameInput');
-            const submitUsername = document.getElementById('submitUsername');
-            const usernameError = document.getElementById('usernameError');
-            const settingsButton = document.getElementById('settingsButton');
-            const settingsModal = document.getElementById('settingsModal');
-            const themeSelect = document.getElementById('themeSelect');
-            const fontSizeSelect = document.getElementById('fontSizeSelect');
-            const soundsToggle = document.getElementById('soundsToggle');
-            const autoScrollToggle = document.getElementById('autoScrollToggle');
-            const previewLength = document.getElementById('previewLength');
-            const saveSettings = document.getElementById('saveSettings');
-
-            // Show username modal
-            usernameModal.style.display = 'block';
-            modalUsernameInput.focus();
-
-            submitUsername.addEventListener('click', () => {
-                const username = modalUsernameInput.value.trim();
-                if (username && socket.connected) {
-                    currentUsername = username;
-                    socket.emit('join', username);
-                } else {
-                    usernameError.style.display = 'block';
-                }
-            });
-
-            modalUsernameInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') submitUsername.click();
-            });
-
-            messageInput.addEventListener('input', () => {
-                updateSendButton();
-                autoResizeTextarea();
-                handleTyping();
-            });
-
-            sendButton.addEventListener('click', sendMessage);
-
-            messageInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                }
-            });
-
-            // Settings
-            settingsButton.addEventListener('click', () => {
-                themeSelect.value = settings.theme;
-                fontSizeSelect.value = settings.fontSize;
-                soundsToggle.checked = settings.sounds;
-                autoScrollToggle.checked = settings.autoScroll;
-                previewLength.value = settings.previewLength;
-                settingsModal.style.display = 'block';
-            });
-
-            saveSettings.addEventListener('click', () => {
-                settings.theme = themeSelect.value;
-                settings.fontSize = fontSizeSelect.value;
-                settings.sounds = soundsToggle.checked;
-                settings.autoScroll = autoScrollToggle.checked;
-                settings.previewLength = parseInt(previewLength.value);
-                localStorage.setItem('zenzSettings', JSON.stringify(settings));
-                applySettings();
-                settingsModal.style.display = 'none';
-            });
-
-            // Close modals on outside click
-            window.onclick = (event) => {
-                if (event.target === settingsModal) settingsModal.style.display = 'none';
-            };
-        });
-    </script>
-</body>
-</html>
+        function playNotificationSound() {
+            // Simple beep sound using Web Audio API
+            if (settings.sounds) {
+                try {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.frequency.value = 800;
+                    oscillator.type = 'sine';
+                    
+                    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
