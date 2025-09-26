@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "vercel-build": "echo 'No build step needed for this project'" // Vercel build script
+    "vercel-build": "echo 'No build step needed for this project'"
   },
   "dependencies": {
     "express": "^4.17.1",
