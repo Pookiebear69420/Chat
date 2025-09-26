@@ -1,97 +1,93 @@
 const express = require('express');
+const http = require('http');
+const socketIo = require('socket.io');
+const path = require('path');
+
 const app = express();
-const http = require('http').createServer(app);
-const io = require('socket.io')(http, {
-  cors: {
-    origin: '*',
-  },
-  path: '/api/socket' // Vercel requires a specific path for WebSocket
+const server = http.createServer(app);
+const io = socketIo(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
 });
 
-const users = {};
-const usernames = new Set();
-
-// Serve static files from the public folder
-app.use(express.static('public'));
-
-// Handle root route to ensure index.html is served
-app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/public/index.html');
-});
-
-// Socket.io logic
-io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
-
-  socket.on('join', (username) => {
-    if (usernames.has(username)) {
-      socket.emit('username_taken');
-    } else {
-      users[socket.id] = username;
-      usernames.add(username);
-      socket.emit('joined');
-      io.emit('userList', Array.from(usernames));
-      io.emit('userCount', usernames.size);
-      console.log(`User joined: ${username}`);
-    }
-  });
-
-  socket.on('message', (data) => {
-    if (data.message.startsWith('/pm ')) {
-      const parts = data.message.split(' ');
-      const targetUsername = parts[1];
-      const privateMessage = parts.slice(2).join(' ');
-      const targetSocket = Object.keys(users).find(id => users[id] === targetUsername);
-      if (targetSocket) {
-        io.to(targetSocket).emit('message', {
-          username: `${data.username} (Private)`,
-          message: privateMessage,
-          timestamp: data.timestamp
-        });
-        socket.emit('message', {
-          username: `${data.username} (Private to ${targetUsername})`,
-          message: privateMessage,
-          timestamp: data.timestamp
-        });
-        console.log(`Private message from ${data.username} to ${targetUsername}`);
-      } else {
-        socket.emit('message', { username: 'System', message: 'User not found', timestamp: Date.now() });
-        console.log(`User not found for PM from ${data.username}`);
-      }
-    } else {
-      io.emit('message', data);
-      console.log(`Broadcast message from ${data.username}: ${data.message}`);
-    }
-  });
-
-  socket.on('typing', (data) => {
-    socket.broadcast.emit('userTyping', data);
-    console.log(`${data.username} is typing`);
-  });
-
-  socket.on('stopTyping', (data) => {
-    socket.broadcast.emit('userStoppedTyping', data);
-    console.log(`${data.username} stopped typing`);
-  });
-
-  socket.on('disconnect', () => {
-    const username = users[socket.id];
-    if (username) {
-      usernames.delete(username);
-      delete users[socket.id];
-      io.emit('userList', Array.from(usernames));
-      io.emit('userCount', usernames.size);
-      console.log(`User disconnected: ${username}`);
-    }
-  });
-
-  socket.on('error', (error) => {
-    console.error('Socket error:', error.message);
-  });
-});
-
-// Vercel uses PORT from environment, fallback to 3000 for local
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+
+// Store connected users
+const users = new Map();
+
+// Serve static files from public directory
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Root route serves index.html
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+io.on('connection', (socket) => {
+    console.log('User connected:', socket.id);
+
+    // Handle user joining
+    socket.on('join', (username) => {
+        // Check if username is already taken
+        const existingUser = Array.from(users.values()).find(user => user.username === username);
+        if (existingUser) {
+            socket.emit('username_taken');
+            return;
+        }
+
+        // Add user to users map
+        users.set(socket.id, { 
+            username: username, 
+            socketId: socket.id 
+        });
+
+        socket.emit('joined');
+        
+        // Update user count and list for all clients
+        io.emit('userCount', users.size);
+        io.emit('userList', Array.from(users.values()).map(user => user.username));
+        
+        console.log(`${username} joined the chat`);
+    });
+
+    // Handle messages
+    socket.on('message', (data) => {
+        const user = users.get(socket.id);
+        if (user) {
+            // Broadcast message to all connected clients
+            io.emit('message', {
+                username: user.username,
+                message: data.message,
+                timestamp: data.timestamp
+            });
+        }
+    });
+
+    // Handle typing indicators
+    socket.on('typing', (data) => {
+        socket.broadcast.emit('userTyping', data);
+    });
+
+    socket.on('stopTyping', (data) => {
+        socket.broadcast.emit('userStoppedTyping', data);
+    });
+
+    // Handle disconnection
+    socket.on('disconnect', () => {
+        const user = users.get(socket.id);
+        if (user) {
+            console.log(`${user.username} disconnected`);
+            users.delete(socket.id);
+            
+            // Update user count and list for all clients
+            io.emit('userCount', users.size);
+            io.emit('userList', Array.from(users.values()).map(user => user.username));
+        }
+    });
+});
+
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
 });
