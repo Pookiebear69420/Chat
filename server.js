@@ -4,19 +4,22 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http, {
   cors: {
     origin: '*',
-  }
+  },
+  path: '/api/socket' // Match this with Vercel route
 });
 
 const users = {};
 const usernames = new Set();
 
-// Serve static files from the root (where index.html is)
-app.use(express.static(__dirname));
+// Serve static files from the public folder
+app.use(express.static('public'));
 
-app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/index.html');
+// API route for Socket.io (required for Vercel)
+app.get('/api', (req, res) => {
+  res.send('Zenzchat API');
 });
 
+// Socket.io logic
 io.on('connection', (socket) => {
   console.log('User connected');
 
