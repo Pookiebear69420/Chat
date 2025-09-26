@@ -1,18 +1,23 @@
 {
   "name": "zenzchat",
   "version": "1.0.0",
-  "description": "Real-time chat app",
+  "description": "A modern chat application with WebSocket support",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "vercel-build": "echo 'No build step needed for this project'"
+    "dev": "nodemon server.js"
   },
   "dependencies": {
-    "express": "^4.17.1",
+    "express": "^4.18.2",
     "socket.io": "^4.7.2"
   },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
   "engines": {
-    "node": ">=14"
-  }
-} 
- 
+    "node": ">=16.0.0"
+  },
+  "keywords": ["chat", "websocket", "realtime", "messaging"],
+  "author": "Pookiebear69420",
+  "license": "MIT"
+}
