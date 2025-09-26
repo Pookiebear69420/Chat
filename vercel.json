@@ -9,10 +9,14 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "dest": "/public/index.html" // Serve index.html for all static routes
     },
     {
-      "src": "/api/socket",
+      "src": "/api/socket.io", // WebSocket upgrade path
+      "dest": "/server.js"
+    },
+    {
+      "src": "/api", // API route for health check or other endpoints
       "dest": "/server.js"
     }
   ]
