@@ -5,7 +5,7 @@ const io = require('socket.io')(http, {
   cors: {
     origin: '*',
   },
-  path: '/api/socket' // Match this with Vercel route
+  path: '/api/socket' // Vercel requires a specific path for WebSocket
 });
 
 const users = {};
@@ -14,9 +14,9 @@ const usernames = new Set();
 // Serve static files from the public folder
 app.use(express.static('public'));
 
-// API route for Socket.io (required for Vercel)
-app.get('/api', (req, res) => {
-  res.send('Zenzchat API');
+// Handle root route to ensure index.html is served
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/public/index.html');
 });
 
 // Socket.io logic
@@ -80,6 +80,7 @@ io.on('connection', (socket) => {
   });
 });
 
+// Vercel uses PORT from environment, fallback to 3000 for local
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
