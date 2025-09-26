@@ -559,7 +559,7 @@
         }
 
         function initSocket() {
-            socket = io();
+            socket = io('/', { path: '/api/socket' });
 
             socket.on('connect', () => {
                 updateConnectionStatus(true);
