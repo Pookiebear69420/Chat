@@ -21,7 +21,7 @@ app.get('/', (req, res) => {
 
 // Socket.io logic
 io.on('connection', (socket) => {
-  console.log('User connected');
+  console.log('User connected:', socket.id);
 
   socket.on('join', (username) => {
     if (usernames.has(username)) {
@@ -32,6 +32,7 @@ io.on('connection', (socket) => {
       socket.emit('joined');
       io.emit('userList', Array.from(usernames));
       io.emit('userCount', usernames.size);
+      console.log(`User joined: ${username}`);
     }
   });
 
@@ -52,20 +53,25 @@ io.on('connection', (socket) => {
           message: privateMessage,
           timestamp: data.timestamp
         });
+        console.log(`Private message from ${data.username} to ${targetUsername}`);
       } else {
         socket.emit('message', { username: 'System', message: 'User not found', timestamp: Date.now() });
+        console.log(`User not found for PM from ${data.username}`);
       }
     } else {
       io.emit('message', data);
+      console.log(`Broadcast message from ${data.username}: ${data.message}`);
     }
   });
 
   socket.on('typing', (data) => {
     socket.broadcast.emit('userTyping', data);
+    console.log(`${data.username} is typing`);
   });
 
   socket.on('stopTyping', (data) => {
     socket.broadcast.emit('userStoppedTyping', data);
+    console.log(`${data.username} stopped typing`);
   });
 
   socket.on('disconnect', () => {
@@ -75,8 +81,12 @@ io.on('connection', (socket) => {
       delete users[socket.id];
       io.emit('userList', Array.from(usernames));
       io.emit('userCount', usernames.size);
+      console.log(`User disconnected: ${username}`);
     }
-    console.log('User disconnected');
+  });
+
+  socket.on('error', (error) => {
+    console.error('Socket error:', error.message);
   });
 });
 
