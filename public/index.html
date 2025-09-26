@@ -294,13 +294,13 @@
         }
 
         @media (max-width: 768px) {
-            /* Responsive styles similar to previous */
             .chat-container {
                 margin: 10px;
                 height: 95vh;
                 border-radius: 15px;
             }
-            /* ... (abbreviated for brevity) */
+            .message-bubble { max-width: 85%; }
+            .input-container { padding: 15px 20px; }
         }
 
         .welcome-message {
@@ -376,7 +376,6 @@
             background: rgba(255, 255, 255, 0.1);
         }
 
-        /* Modal for username */
         .modal {
             display: none;
             position: fixed;
@@ -421,7 +420,6 @@
             box-shadow: var(--neon-glow);
         }
 
-        /* Settings modal */
         .settings-modal .modal-content {
             width: 80%;
             max-width: 500px;
@@ -438,7 +436,6 @@
             color: var(--text-color);
         }
 
-        /* Settings button */
         .settings-button {
             background: none;
             border: none;
@@ -554,8 +551,8 @@
 
         function applySettings() {
             document.documentElement.style.setProperty('--accent-color', settings.theme === 'red' ? '#ff0000' : '#00ff00');
-            document.querySelector('.message-text').style.fontSize = settings.fontSize; // Example application
-            // Apply other settings as needed, e.g., toggle sounds, auto-scroll logic
+            document.querySelectorAll('.message-text').forEach(el => el.style.fontSize = settings.fontSize);
+            // Placeholder for sound and auto-scroll logic
         }
 
         function initSocket() {
@@ -563,16 +560,26 @@
 
             socket.on('connect', () => {
                 updateConnectionStatus(true);
+                console.log('Connected to server');
+            });
+
+            socket.on('connect_error', (error) => {
+                console.error('Connection error:', error.message);
+                updateConnectionStatus(false);
+                // Attempt reconnect after 2 seconds
+                setTimeout(() => socket.connect(), 2000);
             });
 
             socket.on('disconnect', () => {
                 updateConnectionStatus(false);
+                console.log('Disconnected from server');
             });
 
             socket.on('message', (data) => {
                 displayMessage(data.username, data.message, data.timestamp, data.username === currentUsername);
                 if (settings.sounds) {
-                    // Play sound (add audio element if needed)
+                    // Add audio element for sound (e.g., <audio id="notificationSound" src="sound.mp3"></audio>)
+                    // document.getElementById('notificationSound')?.play();
                 }
             });
 
@@ -655,7 +662,7 @@
         function sendMessage() {
             const messageInput = document.getElementById('messageInput');
             const message = messageInput.value.trim();
-            if (!message) return;
+            if (!message || !socket.connected) return;
 
             socket.emit('message', {
                 username: currentUsername,
@@ -674,7 +681,8 @@
 
         function updateSendButton() {
             const messageInput = document.getElementById('messageInput');
-            document.getElementById('sendButton').disabled = !messageInput.value.trim();
+            const sendButton = document.getElementById('sendButton');
+            sendButton.disabled = !messageInput.value.trim() || !socket.connected;
         }
 
         function autoResizeTextarea() {
@@ -684,7 +692,7 @@
         }
 
         function handleTyping() {
-            if (!isTyping) {
+            if (!isTyping && socket.connected) {
                 socket.emit('typing', { username: currentUsername });
                 isTyping = true;
             }
@@ -759,7 +767,7 @@
 
             submitUsername.addEventListener('click', () => {
                 const username = modalUsernameInput.value.trim();
-                if (username) {
+                if (username && socket.connected) {
                     currentUsername = username;
                     socket.emit('join', username);
                 } else {
